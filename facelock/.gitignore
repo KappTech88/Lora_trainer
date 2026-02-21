@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Node
+node_modules/
+.next/
+out/
+
+# Storage (runtime data)
+storage/facelock.db
+storage/characters/
+storage/generations/
+storage/temp/
+backend/storage/
+
+# Environment
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
