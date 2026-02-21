@@ -3,8 +3,8 @@ uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
 aiosqlite==0.20.0
 httpx==0.28.1
-python-multipart==0.0.18
-pillow==11.1.0
+python-multipart==0.0.22
+pillow==12.1.1
 python-dotenv==1.0.1
 pydantic==2.10.4
 pydantic-settings==2.7.1
