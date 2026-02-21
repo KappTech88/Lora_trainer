@@ -23,33 +23,29 @@ def get_storage():
 
 @router.get("", response_model=list[CharacterResponse])
 async def list_characters(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Character).order_by(Character.created_at.desc()))
-    characters = result.scalars().all()
-
-    responses = []
-    for char in characters:
-        img_count = await db.execute(
-            select(func.count(CharacterImage.id)).where(
-                CharacterImage.character_id == char.id
-            )
+    result = await db.execute(
+        select(Character, func.count(CharacterImage.id).label("image_count"))
+        .outerjoin(CharacterImage, Character.id == CharacterImage.character_id)
+        .group_by(Character.id)
+        .order_by(Character.created_at.desc())
+    )
+    rows = result.all()
+    return [
+        CharacterResponse(
+            id=char.id,
+            name=char.name,
+            description=char.description,
+            trigger_word=char.trigger_word,
+            lora_model_id=char.lora_model_id,
+            lora_training_id=char.lora_training_id,
+            lora_status=char.lora_status or "none",
+            lora_base_model=char.lora_base_model,
+            created_at=char.created_at,
+            updated_at=char.updated_at,
+            image_count=count,
         )
-        count = img_count.scalar() or 0
-        responses.append(
-            CharacterResponse(
-                id=char.id,
-                name=char.name,
-                description=char.description,
-                trigger_word=char.trigger_word,
-                lora_model_id=char.lora_model_id,
-                lora_training_id=char.lora_training_id,
-                lora_status=char.lora_status or "none",
-                lora_base_model=char.lora_base_model,
-                created_at=char.created_at,
-                updated_at=char.updated_at,
-                image_count=count,
-            )
-        )
-    return responses
+        for char, count in rows
+    ]
 
 
 @router.post("", response_model=CharacterResponse, status_code=201)

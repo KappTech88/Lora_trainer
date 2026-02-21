@@ -12,6 +12,7 @@ class ImageStorageService:
     def __init__(self):
         self.base_path = Path(settings.image_storage_path).resolve()
         self.base_path.mkdir(parents=True, exist_ok=True)
+        self._http_client = httpx.AsyncClient(timeout=30.0)
 
     def _ensure_dir(self, path: Path) -> None:
         path.mkdir(parents=True, exist_ok=True)
@@ -59,10 +60,9 @@ class ImageStorageService:
         filename = f"{index}.png"
         file_path = dir_path / filename
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            file_path.write_bytes(resp.content)
+        resp = await self._http_client.get(url)
+        resp.raise_for_status()
+        file_path.write_bytes(resp.content)
 
         return f"generations/{generation_id}/{filename}"
 
@@ -88,3 +88,7 @@ class ImageStorageService:
         if abs_path.exists() and abs_path.is_dir():
             import shutil
             shutil.rmtree(abs_path)
+
+    async def aclose(self) -> None:
+        """Close the underlying HTTP client."""
+        await self._http_client.aclose()

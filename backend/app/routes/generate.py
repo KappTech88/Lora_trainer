@@ -244,8 +244,7 @@ async def upload_face_image(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a face image for Quick Mode and get a public URL."""
-    _, _, storage = get_services()
-    client, _, _ = get_services()
+    client, _, storage = get_services()
 
     relative_path, filename = await storage.save_temp_image(file)
     b64 = storage.read_as_base64(relative_path)
