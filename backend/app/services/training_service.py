@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from sqlalchemy import select
@@ -17,6 +18,25 @@ class TrainingService:
         self.client = client
         self.storage = storage
 
+    async def _convert_image_to_url(self, img) -> str | None:
+        """Convert a single image to a public URL. Returns the URL or None."""
+        if img.public_url:
+            return img.public_url
+        if not img.file_path:
+            return None
+        try:
+            b64_data = self.storage.read_as_base64(img.file_path)
+            resp = await self.client.base64_to_url(b64_data)
+            if resp.get("status") == "success" and resp.get("output"):
+                url = resp["output"]
+                if isinstance(url, list):
+                    url = url[0]
+                img.public_url = url
+                return url
+        except Exception as e:
+            logger.error(f"Failed to convert image {img.id} to URL: {e}")
+        return None
+
     async def prepare_training_images(
         self, character_id: str, db: AsyncSession
     ) -> list[str]:
@@ -28,29 +48,12 @@ class TrainingService:
             )
         )
         images = result.scalars().all()
-        public_urls = []
 
-        for img in images:
-            if img.public_url:
-                public_urls.append(img.public_url)
-                continue
-
-            if not img.file_path:
-                continue
-
-            try:
-                b64_data = self.storage.read_as_base64(img.file_path)
-                resp = await self.client.base64_to_url(b64_data)
-                if resp.get("status") == "success" and resp.get("output"):
-                    url = resp["output"]
-                    if isinstance(url, list):
-                        url = url[0]
-                    img.public_url = url
-                    public_urls.append(url)
-            except Exception as e:
-                logger.error(
-                    f"Failed to convert image {img.id} to URL: {e}"
-                )
+        urls = await asyncio.gather(
+            *[self._convert_image_to_url(img) for img in images],
+            return_exceptions=True,
+        )
+        public_urls = [url for url in urls if isinstance(url, str)]
 
         await db.commit()
         return public_urls

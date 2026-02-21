@@ -101,6 +101,7 @@ async def lifespan(app: FastAPI):
     logger.info("FaceLock API started")
     yield
     # Shutdown
+    await image_storage.aclose()
     logger.info("FaceLock API shutting down")
 
 
