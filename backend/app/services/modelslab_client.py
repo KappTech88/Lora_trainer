@@ -1,8 +1,12 @@
+import logging
+
 import httpx
 
 from app.config import settings
 
 MODELSLAB_BASE = "https://modelslab.com"
+
+logger = logging.getLogger(__name__)
 
 
 class ModelsLabClient:
@@ -13,6 +17,12 @@ class ModelsLabClient:
     def _inject_key(self, payload: dict) -> dict:
         payload["key"] = self.api_key
         return payload
+
+    async def _request(self, method: str, url: str, **kwargs) -> dict:
+        """Send a request and return the parsed JSON, raising on HTTP errors."""
+        resp = await self.client.request(method, url, **kwargs)
+        resp.raise_for_status()
+        return resp.json()
 
     def update_api_key(self, new_key: str) -> None:
         self.api_key = new_key
@@ -33,10 +43,11 @@ class ModelsLabClient:
                 "seed": kwargs.get("seed"),
             }
         )
-        resp = await self.client.post(
-            f"{MODELSLAB_BASE}/api/v6/image_editing/flux_headshot", json=payload
+        return await self._request(
+            "POST",
+            f"{MODELSLAB_BASE}/api/v6/image_editing/flux_headshot",
+            json=payload,
         )
-        return resp.json()
 
     async def face_gen(
         self, prompt: str, face_image_url: str, **kwargs
@@ -53,10 +64,11 @@ class ModelsLabClient:
                 "seed": kwargs.get("seed"),
             }
         )
-        resp = await self.client.post(
-            f"{MODELSLAB_BASE}/api/v6/image_editing/face_gen", json=payload
+        return await self._request(
+            "POST",
+            f"{MODELSLAB_BASE}/api/v6/image_editing/face_gen",
+            json=payload,
         )
-        return resp.json()
 
     # --- LoRA Generation ---
     async def text2img_lora(
@@ -85,10 +97,11 @@ class ModelsLabClient:
                 "seed": kwargs.get("seed"),
             }
         )
-        resp = await self.client.post(
-            f"{MODELSLAB_BASE}/api/v6/images/text2img", json=payload
+        return await self._request(
+            "POST",
+            f"{MODELSLAB_BASE}/api/v6/images/text2img",
+            json=payload,
         )
-        return resp.json()
 
     # --- Standard Text2Img (no LoRA) ---
     async def text2img(self, prompt: str, model_id: str, **kwargs) -> dict:
@@ -108,10 +121,11 @@ class ModelsLabClient:
                 "seed": kwargs.get("seed"),
             }
         )
-        resp = await self.client.post(
-            f"{MODELSLAB_BASE}/api/v6/images/text2img", json=payload
+        return await self._request(
+            "POST",
+            f"{MODELSLAB_BASE}/api/v6/images/text2img",
+            json=payload,
         )
-        return resp.json()
 
     # --- Training ---
     async def submit_lora_training(
@@ -136,35 +150,36 @@ class ModelsLabClient:
                 "webhook": kwargs.get("webhook"),
             }
         )
-        resp = await self.client.post(
-            f"{MODELSLAB_BASE}/api/v3/lora_fine_tune", json=payload
+        return await self._request(
+            "POST",
+            f"{MODELSLAB_BASE}/api/v3/lora_fine_tune",
+            json=payload,
         )
-        return resp.json()
 
     async def check_training_status(self, training_id: str) -> dict:
         payload = self._inject_key({})
-        resp = await self.client.post(
+        return await self._request(
+            "POST",
             f"{MODELSLAB_BASE}/api/v3/fine_tune_status/{training_id}",
             json=payload,
         )
-        return resp.json()
 
     # --- Polling / Fetch ---
     async def fetch_image_result(self, generation_id: str) -> dict:
         payload = self._inject_key({})
-        resp = await self.client.post(
+        return await self._request(
+            "POST",
             f"{MODELSLAB_BASE}/api/v6/images/fetch/{generation_id}",
             json=payload,
         )
-        return resp.json()
 
     async def fetch_editing_result(self, generation_id: str) -> dict:
         payload = self._inject_key({})
-        resp = await self.client.post(
+        return await self._request(
+            "POST",
             f"{MODELSLAB_BASE}/api/v6/image_editing/fetch/{generation_id}",
             json=payload,
         )
-        return resp.json()
 
     # --- Image Editing ---
     async def super_resolution(self, image_url: str, **kwargs) -> dict:
@@ -176,25 +191,25 @@ class ModelsLabClient:
                 "face_enhance": kwargs.get("face_enhance", False),
             }
         )
-        resp = await self.client.post(
+        return await self._request(
+            "POST",
             f"{MODELSLAB_BASE}/api/v6/image_editing/super_resolution",
             json=payload,
         )
-        return resp.json()
 
     async def remove_background(self, image_url: str) -> dict:
         payload = self._inject_key({"init_image": image_url})
-        resp = await self.client.post(
+        return await self._request(
+            "POST",
             f"{MODELSLAB_BASE}/api/v6/image_editing/removebg_mask",
             json=payload,
         )
-        return resp.json()
 
     # --- Utility ---
     async def base64_to_url(self, base64_data: str) -> dict:
         payload = self._inject_key({"image": base64_data})
-        resp = await self.client.post(
+        return await self._request(
+            "POST",
             f"{MODELSLAB_BASE}/api/v6/image_editing/base64_to_url",
             json=payload,
         )
-        return resp.json()

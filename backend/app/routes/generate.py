@@ -11,6 +11,7 @@ from app.models.schemas import (
     LoraGenerateRequest,
     QuickGenerateRequest,
 )
+from app.routes.helpers import gen_to_response
 
 router = APIRouter()
 
@@ -18,25 +19,6 @@ router = APIRouter()
 def get_services():
     from app.main import image_storage, modelslab_client, polling_service
     return modelslab_client, polling_service, image_storage
-
-
-def _gen_to_response(gen: Generation) -> GenerationResponse:
-    return GenerationResponse(
-        id=gen.id,
-        character_id=gen.character_id,
-        modelslab_id=gen.modelslab_id,
-        status=gen.status,
-        endpoint=gen.endpoint,
-        prompt=gen.prompt,
-        negative_prompt=gen.negative_prompt,
-        params=gen.params,
-        output_urls=gen.output_urls,
-        local_paths=gen.local_paths,
-        generation_time=gen.generation_time,
-        seed=gen.seed,
-        is_favorite=gen.is_favorite or False,
-        created_at=gen.created_at,
-    )
 
 
 @router.post("/quick", response_model=GenerationResponse)
@@ -140,7 +122,7 @@ async def quick_generate(
     if status == "processing" and modelslab_id:
         await poller.start_polling(gen_id, modelslab_id, "image_editing")
 
-    return _gen_to_response(gen)
+    return gen_to_response(gen)
 
 
 @router.post("/lora", response_model=GenerationResponse)
@@ -235,7 +217,7 @@ async def lora_generate(
     if status == "processing" and modelslab_id:
         await poller.start_polling(gen_id, modelslab_id, "images")
 
-    return _gen_to_response(gen)
+    return gen_to_response(gen)
 
 
 @router.post("/upload-face")
@@ -244,8 +226,7 @@ async def upload_face_image(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a face image for Quick Mode and get a public URL."""
-    _, _, storage = get_services()
-    client, _, _ = get_services()
+    client, _, storage = get_services()
 
     relative_path, filename = await storage.save_temp_image(file)
     b64 = storage.read_as_base64(relative_path)
@@ -275,4 +256,4 @@ async def get_generation(
     gen = result.scalar_one_or_none()
     if not gen:
         raise HTTPException(status_code=404, detail="Generation not found")
-    return _gen_to_response(gen)
+    return gen_to_response(gen)

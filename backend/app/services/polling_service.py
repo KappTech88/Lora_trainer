@@ -20,6 +20,12 @@ class PollingService:
         self.storage = storage
         self.active_polls: dict[str, asyncio.Task] = {}
 
+    def cancel_all(self) -> None:
+        """Cancel all active polling tasks (for graceful shutdown)."""
+        for task in self.active_polls.values():
+            task.cancel()
+        self.active_polls.clear()
+
     async def start_polling(
         self,
         generation_id: str,

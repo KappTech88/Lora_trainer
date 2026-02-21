@@ -19,6 +19,7 @@ storage/temp/
 backend/storage/
 
 # Environment
+.env
 .env.local
 
 # IDE

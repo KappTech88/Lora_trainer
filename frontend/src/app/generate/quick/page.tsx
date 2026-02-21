@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { resolveImageUrl, QUICK_MODES } from "@/lib/constants";
@@ -33,7 +33,22 @@ export default function QuickGeneratePage() {
   );
   const [faceFile, setFaceFile] = useState<File | null>(null);
   const [facePreview, setFacePreview] = useState<string>("");
+  const facePreviewRef = useRef<string>("");
   const [faceUrl, setFaceUrl] = useState<string>("");
+
+  // Revoke previous object URL to prevent memory leak
+  useEffect(() => {
+    const prev = facePreviewRef.current;
+    facePreviewRef.current = facePreview;
+    if (prev && prev !== facePreview) {
+      URL.revokeObjectURL(prev);
+    }
+    return () => {
+      if (facePreviewRef.current) {
+        URL.revokeObjectURL(facePreviewRef.current);
+      }
+    };
+  }, [facePreview]);
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
   const [steps, setSteps] = useState(25);

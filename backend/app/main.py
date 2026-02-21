@@ -101,6 +101,7 @@ async def lifespan(app: FastAPI):
     logger.info("FaceLock API started")
     yield
     # Shutdown
+    polling_service.cancel_all()
     logger.info("FaceLock API shutting down")
 
 

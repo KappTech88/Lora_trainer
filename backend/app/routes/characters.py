@@ -23,33 +23,39 @@ def get_storage():
 
 @router.get("", response_model=list[CharacterResponse])
 async def list_characters(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Character).order_by(Character.created_at.desc()))
-    characters = result.scalars().all()
+    # Single query with image count subquery to avoid N+1
+    count_subq = (
+        select(
+            CharacterImage.character_id,
+            func.count(CharacterImage.id).label("cnt"),
+        )
+        .group_by(CharacterImage.character_id)
+        .subquery()
+    )
+    query = (
+        select(Character, count_subq.c.cnt)
+        .outerjoin(count_subq, Character.id == count_subq.c.character_id)
+        .order_by(Character.created_at.desc())
+    )
+    result = await db.execute(query)
+    rows = result.all()
 
-    responses = []
-    for char in characters:
-        img_count = await db.execute(
-            select(func.count(CharacterImage.id)).where(
-                CharacterImage.character_id == char.id
-            )
+    return [
+        CharacterResponse(
+            id=char.id,
+            name=char.name,
+            description=char.description,
+            trigger_word=char.trigger_word,
+            lora_model_id=char.lora_model_id,
+            lora_training_id=char.lora_training_id,
+            lora_status=char.lora_status or "none",
+            lora_base_model=char.lora_base_model,
+            created_at=char.created_at,
+            updated_at=char.updated_at,
+            image_count=cnt or 0,
         )
-        count = img_count.scalar() or 0
-        responses.append(
-            CharacterResponse(
-                id=char.id,
-                name=char.name,
-                description=char.description,
-                trigger_word=char.trigger_word,
-                lora_model_id=char.lora_model_id,
-                lora_training_id=char.lora_training_id,
-                lora_status=char.lora_status or "none",
-                lora_base_model=char.lora_base_model,
-                created_at=char.created_at,
-                updated_at=char.updated_at,
-                image_count=count,
-            )
-        )
-    return responses
+        for char, cnt in rows
+    ]
 
 
 @router.post("", response_model=CharacterResponse, status_code=201)
@@ -193,6 +199,10 @@ async def upload_images(
     image_type: str = Form("training"),
     db: AsyncSession = Depends(get_db),
 ):
+    # Validate image_type
+    if image_type not in ("training", "reference"):
+        raise HTTPException(status_code=400, detail="Invalid image_type. Must be 'training' or 'reference'.")
+
     # Verify character exists
     result = await db.execute(
         select(Character).where(Character.id == character_id)

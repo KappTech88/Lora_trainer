@@ -1,8 +1,6 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter
 
-from app.config import settings
-from app.models.database import get_db
+from app.config import persist_api_key, settings
 from app.models.schemas import ApiKeyUpdate, SettingsResponse
 
 router = APIRouter()
@@ -31,4 +29,5 @@ async def update_api_key(data: ApiKeyUpdate):
     settings.modelslab_api_key = data.api_key
     client = get_modelslab_client()
     client.update_api_key(data.api_key)
+    persist_api_key(data.api_key)
     return {"status": "success", "message": "API key updated"}

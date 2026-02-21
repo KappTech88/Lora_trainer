@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import Generation, get_db
 from app.models.schemas import GenerationResponse
+from app.routes.helpers import gen_to_response
 
 router = APIRouter()
 
@@ -13,25 +14,6 @@ router = APIRouter()
 def get_storage():
     from app.main import image_storage
     return image_storage
-
-
-def _gen_to_response(gen: Generation) -> GenerationResponse:
-    return GenerationResponse(
-        id=gen.id,
-        character_id=gen.character_id,
-        modelslab_id=gen.modelslab_id,
-        status=gen.status,
-        endpoint=gen.endpoint,
-        prompt=gen.prompt,
-        negative_prompt=gen.negative_prompt,
-        params=gen.params,
-        output_urls=gen.output_urls,
-        local_paths=gen.local_paths,
-        generation_time=gen.generation_time,
-        seed=gen.seed,
-        is_favorite=gen.is_favorite or False,
-        created_at=gen.created_at,
-    )
 
 
 @router.get("", response_model=list[GenerationResponse])
@@ -56,7 +38,7 @@ async def list_generations(
     result = await db.execute(query)
     generations = result.scalars().all()
 
-    return [_gen_to_response(gen) for gen in generations]
+    return [gen_to_response(gen) for gen in generations]
 
 
 @router.put("/{generation_id}/favorite")
